@@ -106,15 +106,15 @@ class Lexer {
         $tokenized         = array();
         $this->_lexerState = 'default';
 
-        while(0 < strlen($this->_text)) {
+        while($offset < strlen($this->_text)) {
 
-            $nextToken = $this->nextToken();
+            $nextToken = $this->nextToken($offset);
 
             if(null === $nextToken)
                 throw new \Hoa\Compiler\Exception\UnrecognizedToken(
                     'Unrecognized token "%s" at line 1 and column %d:' .
                     "\n" . '%s' . "\n" . str_repeat(' ', $offset) . '↑',
-                    0, array($this->_text[0], $offset + 1, $text),
+                    0, array($this->_text[$offset], $offset + 1, $text),
                     1, $offset
                 );
 
@@ -125,7 +125,6 @@ class Lexer {
             }
 
             $offset      += $nextToken['length'];
-            $this->_text  = substr($this->_text, $nextToken['length']);
         }
 
         $tokenized[] = array(
@@ -146,7 +145,7 @@ class Lexer {
      * @access  protected
      * @return  array
      */
-    protected function nextToken ( ) {
+    protected function nextToken ( $offset=0 ) {
 
         $tokenArray = &$this->_tokens[$this->_lexerState];
 
@@ -160,7 +159,7 @@ class Lexer {
                 $nextState = $this->_lexerState;
             }
 
-            $out = $this->matchLexeme($lexeme, $regexp);
+            $out = $this->matchLexeme($lexeme, $regexp, $offset);
 
             if(null !== $out) {
 
@@ -184,22 +183,26 @@ class Lexer {
      * @return  array
      * @throw   \Hoa\Compiler\Exception\Lexer
      */
-    protected function matchLexeme ( $lexeme, $regexp ) {
+    protected function matchLexeme ( $lexeme, $regexp, $offset=0 ) {
 
         $_regexp = str_replace('#', '\#', $regexp);
 
-        if(0 !== preg_match('#^(?:' . $_regexp . ')#u', $this->_text, $matches)) {
+        if(0 !== preg_match('#(?:' . $_regexp . ')#u', $this->_text, $matches, PREG_OFFSET_CAPTURE, $offset)) {
 
-            if('' === $matches[0])
-                throw new \Hoa\Compiler\Exception\Lexer(
-                    'A lexeme must not match an empty value, which is the ' .
-                    'case of "%s" (%s).', 1, array($lexeme, $regexp));
+            $match = $matches[0];
+            if($offset === $match[1]){
+                if ('' === $match[0])
+                    throw new \Hoa\Compiler\Exception\Lexer(
+                        'A lexeme must not match an empty value, which is the ' .
+                        'case of "%s" (%s).', 1, array($lexeme, $regexp));
 
-            return array(
-                'token'  => $lexeme,
-                'value'  => $matches[0],
-                'length' => strlen($matches[0])
-            );
+                return array(
+                    'token' => $lexeme,
+                    'value' => $match[0],
+                    'length' => strlen($match[0])
+                );
+            }
+
         }
 
         return null;
