@@ -99,32 +99,24 @@ class Lexer {
     protected $_nsStack     = null;
 
     /**
-     * do we have to add INDENT / DEDENT tokens
-     *
-     * @var bool
-     */
-    protected $_offSideRules = false;
-
-    /**
-     * do we keep SAMEINDENT tokens
-     *
-     * @var bool
-     */
-    protected $_keepSameIndent = false;
-
-    /**
      * indentation levels stack
      *
      * @var array
      */
     protected $_indentStack = Array(0);
 
-    /**
-     * default tab length for indentation parsing
-     *
-     * @var int
-     */
-    protected $_tabStop = 8;
+    protected $_options = array(
+        'offSideRules:parse'          => false,
+        'offSideRules:keepSameIndent' => false,
+        'offSideRules:tabstop'        => 8
+    );
+
+    public function __construct( Array $options = array() ) {
+        $this->_options = array(
+
+        );
+        $this->_options = array_merge($this->_options, $options);
+    }
 
 
     /**
@@ -151,7 +143,7 @@ class Lexer {
         foreach($this->_tokens as &$tokens) {
 
             $_tokens = array();
-            if($this->_offSideRules)
+            if($this->_options['offSideRules:parse'])
                 $_tokens[] = array(
                     self::LEADING_SPACES => Array('(?<=\R)\s*', null)
                 );
@@ -193,7 +185,7 @@ class Lexer {
                         $text
                     ), 1, $offset);
 
-            if($this->_offSideRules && self::LEADING_SPACES === $nextToken['token'])
+            if($this->_options['offSideRules:parse'] && self::LEADING_SPACES === $nextToken['token'])
                 foreach($this->generateOffSideTokens($nextToken, $offset) as $offsideToken){
                     $tokenized[] = $offsideToken;
                 }
@@ -334,7 +326,7 @@ class Lexer {
                 continue;
             }
             if("\t" === $space){
-                $pos = ( $pos/$this->_tabStop +1 ) * $this->_tabStop;
+                $pos = ( $pos/$this->_options['offSideRules:tabStop'] +1 ) * $this->_options['offSideRules:tabStop'];
                 continue;
             }
             throw new \Hoa\Compiler\Exception\UnrecognizedIndentToken(
@@ -353,7 +345,7 @@ class Lexer {
                 'value' => '',
                 'length' => 0,
                 'namespace' => 'default',
-                'keep' => $this->_keepSameIndent,
+                'keep' => $this->_options['offSideRules:keepSameIndent'],
                 'offset' => $offset
             );
         } elseif($pos > $currentIndent){
