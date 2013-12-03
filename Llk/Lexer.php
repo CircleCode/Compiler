@@ -99,6 +99,20 @@ class Lexer {
     protected $_nsStack     = null;
 
     /**
+     * do we have to add INDENT / DEDENT tokens
+     *
+     * @var bool
+     */
+    protected $_offSideRules = false;
+
+    /**
+     * do we keep SAMEINDENT tokens
+     *
+     * @var bool
+     */
+    protected $_keepSameIndent = false;
+
+    /**
      * indentation levels stack
      *
      * @var array
@@ -136,9 +150,11 @@ class Lexer {
 
         foreach($this->_tokens as &$tokens) {
 
-            $_tokens = array(
-                self::LEADING_SPACES => Array('(?<=\R)\s*', null)
-            );
+            $_tokens = array();
+            if($this->_offSideRules)
+                $_tokens[] = array(
+                    self::LEADING_SPACES => Array('(?<=\R)\s*', null)
+                );
 
             foreach($tokens as $fullLexeme => $regex) {
 
@@ -177,7 +193,7 @@ class Lexer {
                         $text
                     ), 1, $offset);
 
-            if(self::LEADING_SPACES === $nextToken['token'])
+            if($this->_offSideRules && self::LEADING_SPACES === $nextToken['token'])
                 foreach($this->generateOffSideTokens($nextToken, $offset) as $offsideToken){
                     $tokenized[] = $offsideToken;
                 }
@@ -337,7 +353,7 @@ class Lexer {
                 'value' => '',
                 'length' => 0,
                 'namespace' => 'default',
-                'keep' => true,
+                'keep' => $this->_keepSameIndent,
                 'offset' => $offset
             );
         } elseif($pos > $currentIndent){
@@ -384,7 +400,7 @@ class Lexer {
             } while(0 < $stackLength);
         }
 
-
+        return $offsideTokens;
     }
 }
 
