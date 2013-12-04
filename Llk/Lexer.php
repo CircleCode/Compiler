@@ -105,15 +105,13 @@ class Lexer {
      */
     protected $_indentStack = Array(0);
 
-    protected $_options = array(
-        'offSideRules:parse'          => false,
-        'offSideRules:keepSameIndent' => false,
-        'offSideRules:tabstop'        => 8
-    );
+    protected $_options = null;
 
     public function __construct( Array $options = array() ) {
         $this->_options = array(
-
+            'offSideRules:parse' => true,
+            'offSideRules:keepSameIndent' => true,
+            'offSideRules:tabstop' => 8
         );
         $this->_options = array_merge($this->_options, $options);
     }
@@ -144,9 +142,7 @@ class Lexer {
 
             $_tokens = array();
             if($this->_options['offSideRules:parse'])
-                $_tokens[] = array(
-                    self::LEADING_SPACES => Array('(?<=\R)\s*', null)
-                );
+                $_tokens[self::LEADING_SPACES] = Array('(?<=\n)\s*', null);
 
             foreach($tokens as $fullLexeme => $regex) {
 
@@ -185,11 +181,12 @@ class Lexer {
                         $text
                     ), 1, $offset);
 
-            if($this->_options['offSideRules:parse'] && self::LEADING_SPACES === $nextToken['token'])
+            if($this->_options['offSideRules:parse'] && self::LEADING_SPACES === $nextToken['token']){
+                $nextToken['keep'] = false;
                 foreach($this->generateOffSideTokens($nextToken, $offset) as $offsideToken){
                     $tokenized[] = $offsideToken;
                 }
-            elseif(0 === $nextToken['length'])
+            } elseif(0 === $nextToken['length'])
                 throw new \Hoa\Compiler\Exception\Lexer(
                 'A lexeme must not match an empty value, which is the ' .
                 'case of "%s" (%s).', 3, array($lexeme, $regex));
@@ -319,25 +316,27 @@ class Lexer {
         $currentIndent = $this->_indentStack[$stackLength -1];
         $offsideTokens = array();
         $pos = 0;
-        $spaces = str_split($nextToken['value']);
-        foreach($spaces as $space){
-            if(' ' === $space){
-                $pos++;
-                continue;
+        if('' !== $nextToken['value']){
+            $spaces = str_split($nextToken['value']);
+            foreach($spaces as $space){
+                if (' ' === $space) {
+                    $pos++;
+                    continue;
+                }
+                if("\t" === $space){
+                    $pos = ( $pos/$this->_options['offSideRules:tabStop'] +1 ) * $this->_options['offSideRules:tabStop'];
+                    continue;
+                }
+                throw new \Hoa\Compiler\Exception\UnrecognizedIndentToken(
+                    'Unrecognized indent token "%s" at line 1 and column %d:' .
+                    "\n" . '%s' . "\n" .
+                    str_repeat(' ', mb_strlen(substr($this->_text, 0, $offset))+$pos) . '↑',
+                    0, array(
+                        mb_substr(substr($this->_text, $offset), 0, 1),
+                        $offset + $pos+ 1,
+                        $space //FIXME: give hex code in addition to non printable representation
+                    ), 1, $offset + $pos);
             }
-            if("\t" === $space){
-                $pos = ( $pos/$this->_options['offSideRules:tabStop'] +1 ) * $this->_options['offSideRules:tabStop'];
-                continue;
-            }
-            throw new \Hoa\Compiler\Exception\UnrecognizedIndentToken(
-                'Unrecognized indent token "%s" at line 1 and column %d:' .
-                "\n" . '%s' . "\n" .
-                str_repeat(' ', mb_strlen(substr($text, 0, $offset))+$pos) . '↑',
-                0, array(
-                    mb_substr(substr($text, $offset), 0, 1),
-                    $offset + $pos+ 1,
-                    $space //FIXME: give hex code in addition to non printable representation
-                ), 1, $offset + $pos);
         }
         if($pos === $currentIndent){
             $offsideTokens[] = array(
@@ -362,23 +361,21 @@ class Lexer {
             do{
                 array_pop($this->_indentStack);
                 $stackLength--;
-                $matchingIndent = $this->_indentStack[$stackLength - 1];
-
                 if (0 === $stackLength)
-
                     throw new \Hoa\Compiler\Exception\UnrecognizedIndentToken(
                         'Dedent token "%s" at line 1 and column %d does not match previous indent levels:' .
                         "\n" . '%s' . "\n" .
-                        str_repeat(' ', mb_strlen(substr($text, 0, $offset))) . '↑',
+                        str_repeat(' ', mb_strlen(substr($this->_text, 0, $offset))) . '↑',
                         0, array(
-                            mb_substr(substr($text, $offset), 0, 1),
+                            mb_substr(substr($this->_text, $offset), 0, 1),
                             $offset + 1,
                             $nextToken['value'] //FIXME: give hex code in addition to non printable representation
                         ), 1, $offset);
 
+                $matchingIndent = $this->_indentStack[$stackLength - 1];
+
                 $offsideTokens[] = array(
-                    //token DEDENT
-                    'token' => self::INDENT,
+                    'token' => self::DEDENT,
                     'value' => '',
                     'length' => 0,
                     'namespace' => 'default',

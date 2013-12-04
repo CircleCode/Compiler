@@ -460,9 +460,13 @@ class Analyzer {
                     }
 
             if(false == $exists)
-                throw new \Hoa\Compiler\Exception(
-                    'Token ::%s:: does not exist in%s.',
-                    3, array($tokenName, $this->_rule));
+                if ($tokenName !== \Hoa\Compiler\Llk\Lexer::INDENT
+                    && $tokenName !== \Hoa\Compiler\Llk\Lexer::DEDENT
+                    && $tokenName !== \Hoa\Compiler\Llk\Lexer::SAMEINDENT
+                    && $tokenName !== 'EOF')
+                    throw new \Hoa\Compiler\Exception(
+                        'Token ::%s:: does not exist in%s.',
+                        3, array($tokenName, $this->_rule));
 
             $name                       = count($this->_createdRules) + 1;
             $this->_createdRules[$name] = new Token(
@@ -500,9 +504,13 @@ class Analyzer {
                     }
 
             if(false == $exists)
-                throw new \Hoa\Compiler\Exception(
-                    'Token <%s> does not exist in%s.',
-                    4, array($tokenName, $this->_rule));
+                if ($tokenName !== \Hoa\Compiler\Llk\Lexer::INDENT
+                    && $tokenName !== \Hoa\Compiler\Llk\Lexer::DEDENT
+                    && $tokenName !== \Hoa\Compiler\Llk\Lexer::SAMEINDENT
+                    && $tokenName !== 'EOF')
+                    throw new \Hoa\Compiler\Exception(
+                        'Token <%s> does not exist in%s.',
+                        4, array($tokenName, $this->_rule));
 
             $name  = count($this->_createdRules) + 1;
             $token = new Token(
